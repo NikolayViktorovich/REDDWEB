@@ -1,57 +1,47 @@
+// Обновленный task-board.tsx с добавлением новых вкладок
 import { useState } from 'react'
 import type { Task } from '../../types/task'
 import { useTaskStore } from '../../stores/task-store'
 import { TaskCard } from './task-card'
 import { TaskForm } from './task-form'
 import { Button } from '../ui/button'
-import { 
-  Plus, 
-  Search, 
-  LayoutGrid, 
-  List, 
-  Settings, 
-  BarChart3
-} from 'lucide-react'
-import { 
-  FaClipboardList,
-  FaRegClock,
-  FaPlayCircle,
-  FaEye,
-  FaCheckCircle
-} from 'react-icons/fa'
+import { Plus, Search, MoreVertical } from 'lucide-react'
+import { Sidebar } from '../ui/taskbar'
+import { TeamTab } from '../tabs/team-tab'
+import { AnalyticsTab } from '../tabs/analytics-tab'
+import { MessagesTab } from '../tabs/messages-tab'
+import { SettingsTab } from '../tabs/settings-tab'
+import { ProfileTab } from '../tabs/profile-tab'
+import { NotificationsTab } from '../tabs/notifications-tab'
+import { HelpTab } from '../tabs/help-tab'
 
 export function TaskBoard() {
   const { tasks } = useTaskStore()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | undefined>()
-  const [filterStatus, setFilterStatus] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [activeTab, setActiveTab] = useState('dashboard')
 
   const statusColumns = [
     { 
       key: 'todo', 
-      title: 'К выполнению', 
-      color: 'bg-gray-600',
-      icon: FaRegClock
+      title: 'Бэклог', 
+      count: tasks.filter(task => task.status === 'todo').length
     },
     { 
       key: 'in-progress', 
       title: 'В работе', 
-      color: 'bg-blue-600',
-      icon: FaPlayCircle
+      count: tasks.filter(task => task.status === 'in-progress').length
     },
     { 
       key: 'review', 
       title: 'На проверке', 
-      color: 'bg-purple-600',
-      icon: FaEye
+      count: tasks.filter(task => task.status === 'review').length
     },
     { 
       key: 'completed', 
       title: 'Завершено', 
-      color: 'bg-emerald-600',
-      icon: FaCheckCircle
+      count: tasks.filter(task => task.status === 'completed').length
     },
   ] as const
 
@@ -66,214 +56,179 @@ export function TaskBoard() {
   }
 
   const filteredTasks = tasks.filter(task => {
-    const matchesStatus = filterStatus === 'all' || task.status === filterStatus
-    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         task.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-    return matchesStatus && matchesSearch
+    return task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           task.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+           task.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   })
 
   const getTasksByStatus = (status: Task['status']) => {
     return filteredTasks.filter(task => task.status === status)
   }
 
-  const totalTasks = tasks.length
-  const completedTasks = tasks.filter(task => task.status === 'completed').length
-  const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <>
+            {/* Task Board */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {statusColumns.map((column) => {
+                const columnTasks = getTasksByStatus(column.key)
+                
+                return (
+                  <div key={column.key} className="bg-black rounded-lg border border-gray-800">
+                    {/* Column Header */}
+                    <div className="flex items-center justify-between p-4 border-b border-gray-800">
+                      <div>
+                        <h2 className="font-semibold text-white">{column.title}</h2>
+                        <p className="text-sm text-gray-500">({column.count})</p>
+                      </div>
+                      <button className="text-gray-600 hover:text-gray-400">
+                        <MoreVertical className="h-4 w-4" />
+                      </button>
+                    </div>
+                    
+                    {/* Task Cards */}
+                    <div className="p-4 space-y-3 min-h-[200px]">
+                      {columnTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          onEdit={handleEditTask}
+                        />
+                      ))}
+                      
+                      {/* Add new board card for first column */}
+                      {column.key === 'todo' && (
+                        <div className="border-2 border-dashed border-gray-800 rounded-lg p-4 text-center hover:border-gray-700 transition-colors cursor-pointer">
+                          <div className="text-gray-700 mb-2">+</div>
+                          <p className="text-sm text-gray-600">Добавить доску</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* Additional Sections */}
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Design Board */}
+              <div className="bg-black rounded-lg border border-gray-800 p-4">
+                <h3 className="font-semibold text-white mb-4">Доска дизайна</h3>
+                <div className="space-y-2">
+                  <div className="text-sm text-gray-500">Обучающая доска</div>
+                </div>
+              </div>
+
+              {/* Design Tools */}
+              <div className="bg-black rounded-lg border border-gray-800 p-4">
+                <h3 className="font-semibold text-white mb-4">Инструменты дизайна A</h3>
+                <div className="space-y-3">
+                  <div>
+                    <h4 className="text-sm font-medium text-white mb-2">Детали задачи</h4>
+                    <div className="space-y-2">
+                      <div>
+                        <h5 className="text-xs font-medium text-gray-500 mb-1">Входные данные</h5>
+                        <p className="text-sm text-gray-600">Добавить текст функции в файл печати</p>
+                      </div>
+                      <div>
+                        <h5 className="text-xs font-medium text-gray-500 mb-1">Выходные данные</h5>
+                        <p className="text-sm text-gray-600">Текст</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )
+      case 'team':
+        return <TeamTab />
+      case 'analytics':
+        return <AnalyticsTab />
+      case 'messages':
+        return <MessagesTab />
+      case 'settings':
+        return <SettingsTab />
+      case 'profile':
+        return <ProfileTab />
+      case 'notifications':
+        return <NotificationsTab />
+      case 'help':
+        return <HelpTab />
+      default:
+        return null
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-gray-950 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="animate-fade-in">
-          <div className="bg-gray-900 rounded-lg p-6 mb-6 shadow-corporate-lg">
-            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-              <div className="flex-1">
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center">
-                    <BarChart3 className="h-6 w-6 text-blue-400" />
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold text-white">
-                      REDDWEB
-                    </h1>
-                    <p className="text-gray-400 mt-1">
-                      Корпоративная система управления задачами
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Progress Stats */}
-                <div className="flex items-center gap-6 mt-6">
-                  <div className="text-center">
-                    <div className="text-xl font-semibold text-white">{totalTasks}</div>
-                    <div className="text-sm text-gray-400">Всего задач</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-xl font-semibold text-emerald-400">{completedTasks}</div>
-                    <div className="text-sm text-gray-400">Выполнено</div>
-                  </div>
-                  <div className="flex-1 max-w-xs">
-                    <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Прогресс команды</span>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
-                    <div className="w-full bg-gray-800 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-blue-500 to-emerald-500 h-2 rounded-full transition-all duration-500 ease-out"
-                        style={{ width: `${progress}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <Button 
-                onClick={() => setIsFormOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Новая задача
-              </Button>
+    <div className="min-h-screen bg-black flex">
+      {/* Sidebar */}
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} unreadNotifications={2} />
+      
+      {/* Main Content */}
+      <div className="flex-1 p-6">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                {activeTab === 'dashboard' && 'Менеджер задач'}
+                {activeTab === 'team' && 'Команда'}
+                {activeTab === 'analytics' && 'Аналитика'}
+                {activeTab === 'messages' && 'Сообщения'}
+                {activeTab === 'settings' && 'Настройки'}
+                {activeTab === 'profile' && 'Профиль'}
+                {activeTab === 'notifications' && 'Уведомления'}
+                {activeTab === 'help' && 'Помощь'}
+              </h1>
+              <p className="text-gray-500 mt-1">
+                {activeTab === 'dashboard' && 'Обзор всех задач и проектов'}
+                {activeTab === 'team' && 'Управление участниками команды'}
+                {activeTab === 'analytics' && 'Статистика и отчеты'}
+                {activeTab === 'messages' && 'Общение с командой'}
+                {activeTab === 'settings' && 'Настройки системы'}
+                {activeTab === 'profile' && 'Управление профилем'}
+                {activeTab === 'notifications' && 'Просмотр и управление уведомлениями'}
+                {activeTab === 'help' && 'Помощь и поддержка'}
+              </p>
             </div>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="animate-slide-up">
-          <div className="bg-gray-900 rounded-lg p-4 mb-6 shadow-corporate">
-            <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-              {/* Search */}
-              <div className="flex-1 max-w-md relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <input
-                  type="text"
-                  placeholder="Поиск задач..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2.5 bg-gray-800 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 transition-colors"
-                />
-              </div>
-
-              {/* Filters and View Toggle */}
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1 bg-gray-800 rounded-lg p-1">
-                  <button
-                    onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'grid' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-md transition-colors ${
-                      viewMode === 'list' 
-                        ? 'bg-blue-600 text-white' 
-                        : 'text-gray-400 hover:text-white hover:bg-gray-700'
-                    }`}
-                  >
-                    <List className="h-4 w-4" />
-                  </button>
-                </div>
-
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="bg-gray-800 text-white rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-blue-500 transition-colors"
-                >
-                  <option value="all">Все статусы</option>
-                  <option value="todo">К выполнению</option>
-                  <option value="in-progress">В работе</option>
-                  <option value="review">На проверке</option>
-                  <option value="completed">Завершено</option>
-                </select>
-
-                <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-800">
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Task Form Modal */}
-        <TaskForm 
-          task={editingTask}
-          isOpen={isFormOpen}
-          onClose={handleCloseForm}
-        />
-
-        {/* Task Board */}
-        <div className={`gap-4 ${viewMode === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4' : 'space-y-4'}`}>
-          {statusColumns.map((column, index) => {
-            const columnTasks = getTasksByStatus(column.key)
-            const IconComponent = column.icon
-            
-            return (
-              <div 
-                key={column.key} 
-                className="bg-gray-900 rounded-lg p-4 shadow-corporate animate-scale-in"
-                style={{ animationDelay: `${index * 100}ms` }}
-              >
-                <div className="flex items-center justify-between mb-4 pb-3">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 ${column.color} rounded-md flex items-center justify-center`}>
-                      <IconComponent className="text-white text-sm" />
-                    </div>
-                    <div>
-                      <h2 className="font-semibold text-white text-sm">
-                        {column.title}
-                      </h2>
-                      <p className="text-xs text-gray-400">{columnTasks.length} задач</p>
-                    </div>
-                  </div>
-                  <div className={`w-6 h-6 ${column.color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
-                    {columnTasks.length}
-                  </div>
-                </div>
-                
-                <div className={`space-y-3 ${viewMode === 'list' ? 'max-h-96 overflow-y-auto' : ''}`}>
-                  {columnTasks.map((task, taskIndex) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      onEdit={handleEditTask}
-                      viewMode={viewMode}
-                      animationDelay={taskIndex * 50}
+            <div className="flex items-center gap-4">
+              {activeTab === 'dashboard' && (
+                <>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                    <input
+                      type="text"
+                      placeholder="Поиск задач..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-10 pr-4 py-2 bg-black border border-gray-800 rounded-lg text-white placeholder-gray-600 focus:outline-none focus:border-gray-700 w-64"
                     />
-                  ))}
-                  {columnTasks.length === 0 && (
-                    <div className="text-center text-gray-500 py-6 bg-gray-800/50 rounded">
-                      <FaClipboardList className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                      <p className="text-sm">Нет задач</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Empty State */}
-        {filteredTasks.length === 0 && tasks.length > 0 && (
-          <div className="text-center py-12 animate-fade-in">
-            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Search className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <Button 
+                    onClick={() => setIsFormOpen(true)}
+                    className="bg-white text-black hover:bg-gray-200 border-0"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Добавить задачу
+                  </Button>
+                </>
+              )}
             </div>
-            <h3 className="text-lg font-semibold text-white mb-2">Задачи не найдены</h3>
-            <p className="text-gray-400 mb-6">Попробуйте изменить параметры поиска или фильтрации</p>
-            <Button 
-              onClick={() => { setSearchQuery(''); setFilterStatus('all'); }}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              Сбросить фильтры
-            </Button>
           </div>
-        )}
+
+          {/* Tab Content */}
+          {renderTabContent()}
+
+          {/* Task Form Modal */}
+          <TaskForm 
+            task={editingTask}
+            isOpen={isFormOpen}
+            onClose={handleCloseForm}
+          />
+        </div>
       </div>
     </div>
   )
